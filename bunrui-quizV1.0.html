@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bunrui Kanji</title>
+  <script>
+    // Apply saved theme BEFORE the page paints, avoiding a flash of the
+    // wrong theme. Dark is the default — light mode is opt-in only.
+    (function() {
+      try {
+        if (localStorage.getItem('bk_theme') === 'light') {
+          document.documentElement.classList.add('light-mode');
+        }
+      } catch(e) {}
+    })();
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #1e1e1e;
+      --bg-secondary: #2a2a2a;
+      --bg-tertiary: #161616;
+      --text-primary: #f0f0f0;
+      --text-secondary: #a0a0a0;
+      --text-tertiary: #6a6a6a;
+      --border-light: rgba(255,255,255,0.1);
+      --border-mid: rgba(255,255,255,0.18);
+      --red: #C0392B;
+      --red-dark: #a93226;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    /* Dark mode is the default. .light-mode (toggled via JS + localStorage)
+       overrides back to a light theme for anyone who prefers it. */
+    html.light-mode {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f4;
+      --bg-tertiary: #f0efec;
+      --text-primary: #1a1a1a;
+      --text-secondary: #6b6b6b;
+      --text-tertiary: #9b9b9b;
+      --border-light: rgba(0,0,0,0.1);
+      --border-mid: rgba(0,0,0,0.18);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .nav {
+      background: var(--bg-primary);
+      border-bottom: 0.5px solid var(--border-light);
+      padding: 0 1rem;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .nav-brand {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-primary);
+      padding: 1rem 0;
+      margin-right: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .nav-brand .jp-char {
+      font-size: 22px;
+      color: var(--red);
+      font-family: 'Noto Serif JP', serif;
+    }
+
+    .nav-tab {
+      padding: 0.85rem 0.75rem;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      font-family: 'Inter', sans-serif;
+      transition: color 0.15s, border-color 0.15s;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .nav-tab:hover { color: var(--text-primary); }
+    .nav-tab.active { color: var(--red); border-bottom-color: var(--red); font-weight: 500; }
+
+    /* ── Borderlands dropdown (hover-to-expand submenu) ── */
+    .nav-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .nav-dropdown-trigger {
+      /* inherits .nav-tab styling */
+    }
+    .nav-dropdown.active .nav-dropdown-trigger {
+      color: var(--red);
+      border-bottom-color: var(--red);
+      font-weight: 500;
+    }
+    .nav-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 160px;
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+      padding: 6px;
+      z-index: 30;
+    }
+    /* Small invisible bridge so the mouse can travel from the trigger
+       down into the menu without the gap closing the dropdown. */
+    .nav-dropdown::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      height: 8px;
+    }
+    .nav-dropdown:hover .nav-dropdown-menu,
+    .nav-dropdown:focus-within .nav-dropdown-menu {
+      display: block;
+    }
+    .nav-dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: none;
+      border: none;
+      border-radius: var(--radius-md);
+      text-align: left;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+      transition: background 0.12s, color 0.12s;
+    }
+    .nav-dropdown-item:hover { background: var(--bg-secondary); color: var(--text-primary); }
+    .nav-dropdown-item.active { color: var(--red); font-weight: 500; background: var(--bg-secondary); }
+
+    .theme-toggle {
+      margin-left: auto;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border-mid);
+      background: var(--bg-secondary);
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      margin-top: 0;
+      margin-bottom: 0;
+      margin-right: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { border-color: var(--red); transform: scale(1.05); }
+
+    .level-bar {
+      background: var(--bg-primary);
+      border-bottom: 0.5px solid var(--border-light);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .level-bar-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .level-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .level-btn {
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border-mid);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.12s;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .level-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    .level-btn[data-level="5"].active { background:#2a0d33; border-color:#9C27B0; color:#CE93D8; }
+    .level-btn[data-level="4"].active { background:#1a2e0a; border-color:#4CAF50; color:#a8d870; }
+    .level-btn[data-level="3"].active { background:#0d1f33; border-color:#2196F3; color:#90CAF9; }
+    .level-btn[data-level="2"].active { background:#2d1a00; border-color:#FF9800; color:#FFCC80; }
+    .level-btn[data-level="1"].active { background:#2e0a0a; border-color:#e53935; color:#f09595; }
+
+    html.light-mode .level-btn[data-level="5"].active { background:#F3E5F5; border-color:#9C27B0; color:#4A148C; }
+    html.light-mode .level-btn[data-level="4"].active { background:#eaf3de; border-color:#4CAF50; color:#1B5E20; }
+    html.light-mode .level-btn[data-level="3"].active { background:#E3F2FD; border-color:#2196F3; color:#0D47A1; }
+    html.light-mode .level-btn[data-level="2"].active { background:#FFF3E0; border-color:#FF9800; color:#7B3F00; }
+    html.light-mode .level-btn[data-level="1"].active { background:#fcebeb; border-color:#e53935; color:#7f0000; }
+
+    .difficulty-btn {
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border-mid);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.12s;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .difficulty-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    .difficulty-btn[data-diff="easy"].active   { background:#1a2e0a; border-color:#4CAF50; color:#a8d870; }
+    .difficulty-btn[data-diff="medium"].active { background:#2d1a00; border-color:#FF9800; color:#FFCC80; }
+    .difficulty-btn[data-diff="hard"].active   { background:#2e0a0a; border-color:#e53935; color:#f09595; }
+
+    html.light-mode .difficulty-btn[data-diff="easy"].active   { background:#eaf3de; border-color:#4CAF50; color:#1B5E20; }
+    html.light-mode .difficulty-btn[data-diff="medium"].active { background:#FFF3E0; border-color:#FF9800; color:#7B3F00; }
+    html.light-mode .difficulty-btn[data-diff="hard"].active   { background:#fcebeb; border-color:#e53935; color:#7f0000; }
+
+    /* ── Borderlands character roster buttons (reuses .difficulty-btn) ── */
+    .difficulty-btn[data-char].active   { background:#2a0d33; border-color:#9C27B0; color:#CE93D8; }
+    html.light-mode .difficulty-btn[data-char].active { background:#F3E5F5; border-color:#9C27B0; color:#4A148C; }
+    /* Loot tier gets its own gold/treasure colour, distinct from any character */
+    .difficulty-btn.loot-btn.active   { background:#3d2e00; border-color:#FFC107; color:#FFE082; }
+    html.light-mode .difficulty-btn.loot-btn.active { background:#FFF8E1; border-color:#FFC107; color:#7B5E00; }
+    .difficulty-btn.loot-btn { font-weight: 600; }
+
+    .difficulty-hint {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+    }
+
+    .level-all-btn {
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border-mid);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.12s;
+      white-space: nowrap;
+    }
+    .level-all-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+
+    .page { display: none; padding: 2rem 1.5rem; max-width: 680px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    .page-header { margin-bottom: 1.5rem; }
+    .page-header h2 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+    .page-header p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+    .page-header p a { color: var(--red); }
+
+    .source-note { font-size: 11px; color: var(--text-tertiary); text-align: right; margin-bottom: 6px; }
+    .source-note a { color: var(--text-tertiary); }
+
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 6px;
+      gap: 8px;
+    }
+
+    .pool-size-note { font-size: 11px; color: var(--text-tertiary); }
+
+    .mastered-note { font-size: 11px; color: var(--text-tertiary); }
+    .mastered-note strong { color: #a8d870; }
+    html.light-mode .mastered-note strong { color: #639922; }
+
+    .reset-btn {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      background: none;
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 3px 10px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: color 0.12s, border-color 0.12s;
+      white-space: nowrap;
+    }
+
+    .reset-btn:hover {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .reset-btn.armed {
+      color: #fff;
+      background: var(--red);
+      border-color: var(--red);
+      font-weight: 500;
+    }
+
+    .word-card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      min-height: 170px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+    }
+
+    .kanji-row { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; }
+    .kanji-display { font-size: 64px; line-height: 1.1; font-family: 'Noto Serif JP', serif; }
+
+    .speaker-btn {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border-mid);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .speaker-btn:hover { border-color: var(--red); color: var(--red); transform: translateY(-50%) scale(1.05); }
+    .speaker-btn:active { transform: translateY(-50%) scale(0.92); }
+    .speaker-btn.speaking {
+      border-color: var(--red);
+      color: var(--red);
+      animation: speakerPulse 0.6s ease-in-out infinite;
+    }
+    @keyframes speakerPulse {
+      0%, 100% { transform: translateY(-50%) scale(1); }
+      50% { transform: translateY(-50%) scale(1.12); }
+    }
+    .reading-display {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-light);
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .reading-chip {
+      display: inline-flex;
+      align-items: baseline;
+      font-size: 16px;
+      color: var(--text-primary);
+      letter-spacing: 0.06em;
+      font-family: 'Noto Serif JP', serif;
+    }
+    .reading-chip .okurigana {
+      color: var(--text-tertiary);
+      font-size: 14px;
+      margin-left: 1px;
+    }
+    .reading-chip.on-yomi {
+      color: var(--text-secondary);
+      font-size: 15px;
+    }
+    .reading-sep {
+      color: var(--border-mid);
+      font-size: 18px;
+      line-height: 1;
+      user-select: none;
+    }
+    .meta-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+    .word-type-badge {
+      display: inline-block; font-size: 11px; padding: 2px 10px;
+      border-radius: 20px; background: var(--bg-secondary);
+      color: var(--text-tertiary); border: 0.5px solid var(--border-light);
+    }
+
+    .jlpt-pill {
+      display: inline-block; font-size: 11px; padding: 2px 8px;
+      border-radius: 20px; font-weight: 500;
+      background: var(--bg-secondary); color: var(--text-tertiary);
+      border: 0.5px solid var(--border-light);
+    }
+    .jlpt-pill[data-level="1"] { background:#fcebeb; color:#a32d2d; border-color:#f09595; }
+    .jlpt-pill[data-level="2"] { background:#FFF3E0; color:#7B3F00; border-color:#FFCC80; }
+    .jlpt-pill[data-level="3"] { background:#E3F2FD; color:#0D47A1; border-color:#90CAF9; }
+    .jlpt-pill[data-level="4"] { background:#eaf3de; color:#27500a; border-color:#A5D6A7; }
+    .jlpt-pill[data-level="5"] { background:#F3E5F5; color:#4A148C; border-color:#CE93D8; }
+
+    .stroke-info { font-size: 11px; color: var(--text-tertiary); }
+
+    .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem; }
+
+    .option-btn {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      padding: 0.875rem 1rem;
+      font-size: 14px;
+      color: var(--text-primary);
+      cursor: pointer;
+      text-align: left;
+      line-height: 1.4;
+      font-family: 'Inter', sans-serif;
+      transition: background 0.12s, border-color 0.12s, transform 0.08s;
+    }
+
+    .option-btn:hover:not(:disabled) { background: var(--bg-secondary); }
+    .option-btn:active:not(:disabled) { transform: scale(0.98); }
+    .option-btn.correct { background:#1a2e0a; border-color:#639922; border-width:2px; color:#a8d870; font-weight:500; }
+    .option-btn.wrong   { background:#2e0a0a; border-color:#a32d2d; border-width:2px; color:#f09595; font-weight:500; }
+    .option-btn:disabled { cursor: default; }
+
+    html.light-mode .option-btn.correct { background:#eaf3de; border-color:#639922; color:#27500a; }
+    html.light-mode .option-btn.wrong   { background:#fcebeb; border-color:#a32d2d; color:#501313; }
+
+    .action-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2rem; }
+
+    .score-display { font-size: 13px; color: var(--text-secondary); }
+    .score-display strong { color: var(--text-primary); font-weight: 500; }
+
+    .next-btn {
+      padding: 0.6rem 1.25rem;
+      background: var(--red); color: #fff;
+      border: none; border-radius: var(--radius-md);
+      font-size: 14px; font-weight: 500;
+      cursor: pointer; font-family: 'Inter', sans-serif;
+      transition: background 0.15s;
+    }
+    .next-btn:hover { background: var(--red-dark); }
+    .next-btn:disabled { background: var(--bg-secondary); color: var(--text-tertiary); cursor: not-allowed; }
+
+    .streak-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      margin-bottom: 8px;
+    }
+    .streak-badge.hot { color: var(--red); }
+    .streak-badge .streak-num { font-size: 20px; font-weight: 700; line-height: 1; }
+
+    .loading-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 220px; gap: 10px; color: var(--text-secondary); font-size: 14px; text-align: center;
+    }
+    .loading-state small { font-size: 12px; color: var(--text-tertiary); }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid var(--border-light); border-top-color: var(--red);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      background: #2e0a0a; border: 0.5px solid #a32d2d;
+      border-radius: var(--radius-md); padding: 1rem;
+      color: #f09595; font-size: 13px; margin-bottom: 1rem; line-height: 1.5;
+    }
+    html.light-mode .error-msg { background:#fcebeb; color:#501313; border-color:#a32d2d; }
+
+    .wrong-panel {
+      background: var(--bg-primary); border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg); overflow: hidden; margin-top: 0.5rem;
+    }
+
+    .wrong-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.875rem 1rem; border-bottom: 0.5px solid var(--border-light);
+      cursor: pointer; user-select: none;
+    }
+    .wrong-panel-header:hover { background: var(--bg-secondary); }
+    .wrong-panel-title { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+
+    .wrong-count-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 20px; height: 20px; border-radius: 10px;
+      background: #2e0a0a; color: #f09595;
+      font-size: 11px; font-weight: 500; padding: 0 5px; border: 0.5px solid #a32d2d;
+    }
+    html.light-mode .wrong-count-badge { background:#fcebeb; color:#a32d2d; border-color:#f09595; }
+
+    .wrong-panel-toggle { font-size: 12px; color: var(--text-tertiary); transition: transform 0.2s; }
+    .wrong-panel-toggle.open { transform: rotate(180deg); }
+    .wrong-panel-body { display: none; }
+    .wrong-panel-body.open { display: block; }
+
+    .wrong-word-item {
+      display: grid; grid-template-columns: 60px 130px 1fr 1fr;
+      align-items: center; gap: 12px; padding: 0.75rem 1rem;
+      border-bottom: 0.5px solid var(--border-light); font-size: 13px;
+    }
+    .wrong-word-item:last-child { border-bottom: none; }
+    .wrong-word-jp { font-family: 'Noto Serif JP', serif; font-size: 20px; }
+    .wrong-word-reading { font-size: 12px; color: var(--text-secondary); letter-spacing: 0.02em; line-height: 1.5; }
+    .wrong-word-correct { color: #a8d870; font-size: 13px; }
+    html.light-mode .wrong-word-correct { color: #3a6b0f; }
+
+    .wrong-word-jisho a {
+      font-size: 13px;
+      color: var(--red);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .wrong-word-jisho a:hover { text-decoration: underline; }
+
+    .wrong-panel-cols {
+      display: grid; grid-template-columns: 60px 130px 1fr 1fr;
+      gap: 12px; padding: 0.5rem 1rem;
+      border-bottom: 0.5px solid var(--border-light); background: var(--bg-secondary);
+    }
+    .wrong-panel-cols span {
+      font-size: 11px; font-weight: 500; color: var(--text-tertiary);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .wrong-panel-empty {
+      padding: 1.5rem 1rem; text-align: center; font-size: 13px; color: var(--text-tertiary);
+    }
+
+    @media (max-width: 560px) {
+      .options-grid { grid-template-columns: 1fr; }
+      .kanji-display { font-size: 48px; }
+      .speaker-btn { width: 28px; height: 28px; font-size: 13px; }
+      .nav-tab { padding: 0.75rem 0.5rem; font-size: 12px; }
+      .wrong-word-item { grid-template-columns: 50px 100px 1fr 60px; }
+      .wrong-panel-cols { grid-template-columns: 50px 100px 1fr 60px; }
+      .level-bar { padding: 0.75rem 1rem; }
+    }
+
+    /* ── Mastery progress dots ── */
+    /* ── Mastery ticker (top-right corner of word card) ── */
+    .mastery-ticker {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .mastery-ticker-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      border: 1.5px solid var(--border-mid);
+      transition: background 0.25s, border-color 0.25s, transform 0.2s;
+    }
+    .mastery-ticker-dot.filled {
+      background: #66BB6A;
+      border-color: #66BB6A;
+      transform: scale(1.1);
+    }
+    html.light-mode .mastery-ticker-dot.filled { background: #4CAF50; border-color: #4CAF50; }
+
+    /* ── Mastered toast ── */
+    .mastered-toast {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--bg-primary);
+      border: 2px solid #639922;
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 2rem;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      animation: toastIn 0.25s ease, toastOut 0.25s ease 0.85s forwards;
+      z-index: 20; pointer-events: none;
+    }
+    .mastered-toast-kanji { font-family: 'Noto Serif JP', serif; font-size: 48px; line-height: 1; }
+    .mastered-toast-label { font-size: 16px; font-weight: 500; color: #639922; }
+    @keyframes toastIn  { from { opacity:0; transform:translate(-50%,-50%) scale(0.85); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
+    @keyframes toastOut { from { opacity:1; } to { opacity:0; } }
+
+    /* ── Review tabs (Mistakes / Mastered) ── */
+    .review-tabs {
+      display: flex; border-bottom: 0.5px solid var(--border-light);
+    }
+    .review-tab {
+      flex: 1; padding: 0.6rem 1rem;
+      font-size: 13px; font-family: 'Inter', sans-serif;
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--text-secondary); cursor: pointer; transition: color 0.12s;
+    }
+    .review-tab:hover { color: var(--text-primary); }
+    .review-tab.active { color: var(--red); border-bottom-color: var(--red); font-weight: 500; }
+
+    /* ── Remove button used in Pinned / Mastered rows (replaces "Your answer" column) ── */
+    .wrong-word-remove { display: flex; justify-content: flex-end; }
+    .row-remove-btn {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 0.5px solid var(--border-light);
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .row-remove-btn:hover { background: #2e0a0a; color: #f09595; border-color: #a32d2d; }
+    html.light-mode .row-remove-btn:hover { background: #fcebeb; color: #a32d2d; border-color: #f09595; }
+
+    /* ── Pin toggle on the word card ── */
+    .pin-toggle {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border-mid);
+      background: var(--bg-primary);
+      color: var(--text-tertiary);
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .pin-toggle:hover { border-color: #FF9800; color: #FF9800; }
+    .pin-toggle.pinned {
+      background: #2d1a00;
+      border-color: #FF9800;
+      color: #FFCC80;
+    }
+    html.light-mode .pin-toggle.pinned { background: #FFF3E0; border-color: #FF9800; color: #FF9800; }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <span class="nav-brand"><span class="jp-char">分</span> Bunrui Kanji</span>
+    <button class="nav-tab active" onclick="switchPage('vocab')"       id="tab-vocab">📚 Vocab</button>
+    <button class="nav-tab"        onclick="switchPage('daily')"       id="tab-daily">💬 Daily</button>
+    <button class="nav-tab"        onclick="switchPage('sumo')"        id="tab-sumo">🏆 Sumo</button>
+    <div class="nav-dropdown" id="nav-dropdown-anime">
+      <button class="nav-tab nav-dropdown-trigger" id="tab-anime-group">🎬 Anime ▾</button>
+      <div class="nav-dropdown-menu">
+        <button class="nav-dropdown-item" onclick="switchPage('shonen')" id="tab-shonen">Shonen</button>
+        <button class="nav-dropdown-item" onclick="switchPage('romance')" id="tab-romance">Romance</button>
+        <button class="nav-dropdown-item" onclick="switchPage('seinen')" id="tab-seinen">Seinen</button>
+        <button class="nav-dropdown-item" onclick="switchPage('sol')" id="tab-sol">Slice of Life</button>
+      </div>
+    </div>
+    <button class="nav-tab"        onclick="switchPage('hsr')"         id="tab-hsr">🌠 HSR</button>
+    <button class="nav-tab"        onclick="switchPage('overwatch')"   id="tab-overwatch">🛡️ Overwatch</button>
+    <div class="nav-dropdown" id="nav-dropdown-bl">
+      <button class="nav-tab nav-dropdown-trigger" id="tab-bl-group">🔫 Borderlands ▾</button>
+      <div class="nav-dropdown-menu">
+        <button class="nav-dropdown-item" onclick="switchPage('bl1')" id="tab-bl1">Borderlands 1</button>
+        <button class="nav-dropdown-item" onclick="switchPage('bl2')" id="tab-bl2">Borderlands 2</button>
+        <button class="nav-dropdown-item" onclick="switchPage('tps')" id="tab-tps">Pre-Sequel</button>
+        <button class="nav-dropdown-item" onclick="switchPage('bl3')" id="tab-bl3">Borderlands 3</button>
+        <button class="nav-dropdown-item" onclick="switchPage('bl4')" id="tab-bl4">Borderlands 4</button>
+      </div>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch to light mode">☀️</button>
+  </nav>
+
+  <div class="level-bar" id="level-bar">
+    <!-- Vocab mode: N5–N1 pills (shown when on vocab page) -->
+    <div id="filter-vocab" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="level-bar-label">JLPT level:</span>
+      <div class="level-toggles">
+        <button class="level-btn active" data-level="5" onclick="toggleLevel(5)">N5</button>
+        <button class="level-btn active" data-level="4" onclick="toggleLevel(4)">N4</button>
+        <button class="level-btn active" data-level="3" onclick="toggleLevel(3)">N3</button>
+        <button class="level-btn active" data-level="2" onclick="toggleLevel(2)">N2</button>
+        <button class="level-btn active" data-level="1" onclick="toggleLevel(1)">N1</button>
+      </div>
+      <div class="level-bar-sep"></div>
+      <button class="level-all-btn" onclick="selectAllLevels()">All</button>
+      <button class="level-all-btn" onclick="clearAllLevels()">None</button>
+    </div>
+    <!-- Topic mode: Easy / Medium / Hard (shown when on any non-vocab page) -->
+    <div id="filter-topic" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="level-bar-label">Difficulty:</span>
+      <div class="level-toggles">
+        <button class="difficulty-btn active" data-diff="easy"   onclick="setDifficulty('easy')">Easy</button>
+        <button class="difficulty-btn"        data-diff="medium" onclick="setDifficulty('medium')">Medium</button>
+        <button class="difficulty-btn"        data-diff="hard"   onclick="setDifficulty('hard')">Hard</button>
+      </div>
+      <span class="difficulty-hint" id="difficulty-hint">N5 + N4</span>
+    </div>
+    <!-- Character mode: playable-character rosters + Loot tier (Borderlands games) -->
+    <div id="filter-character" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="level-bar-label">Character:</span>
+      <div class="level-toggles" id="character-toggles"></div>
+      <div class="level-bar-sep"></div>
+      <button class="level-all-btn" onclick="selectAllCharacters()">All</button>
+      <button class="level-all-btn" onclick="clearAllCharacters()">None</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ PAGES ═══════════ -->
+
+  <div class="page active" id="page-vocab">
+    <div class="page-header">
+      <h2>Kanji vocabulary quiz</h2>
+      <p>Random Jōyō kanji. All four options are real dictionary meanings.</p>
+    </div>
+    <div id="vocab-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-vocab">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('vocab')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-vocab">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-vocab">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-vocab"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-daily">
+    <div class="page-header">
+      <h2>Daily conversation</h2>
+      <p>Everyday kanji for greetings, shopping, directions, food, and situations you encounter daily in Japan.</p>
+    </div>
+    <div id="daily-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-daily">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('daily')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-daily">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-daily">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-daily"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-sumo">
+    <div class="page-header">
+      <h2>Sumo vocabulary</h2>
+      <p>Kanji from the world of sumo — wrestlers, techniques, ranks, and the ring.</p>
+    </div>
+    <div id="sumo-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-sumo">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('sumo')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-sumo">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-sumo">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-sumo"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-romance">
+    <div class="page-header">
+      <h2>Romance vocabulary</h2>
+      <p>Kanji tied to love, feelings, and relationships.</p>
+    </div>
+    <div id="romance-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-romance">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('romance')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-romance">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-romance">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-romance"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-shonen">
+    <div class="page-header">
+      <h2>Shonen anime vocabulary</h2>
+      <p>Kanji from battles, training, friendship, and guts.</p>
+    </div>
+    <div id="shonen-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-shonen">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('shonen')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-shonen">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-shonen">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-shonen"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-seinen">
+    <div class="page-header">
+      <h2>Seinen anime vocabulary</h2>
+      <p>Kanji from mature, psychological anime — inner conflict, moral ambiguity, society, and the weight of adult life.</p>
+    </div>
+    <div id="seinen-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-seinen">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('seinen')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-seinen">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-seinen">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-seinen"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-sol">
+    <div class="page-header">
+      <h2>Slice of Life vocabulary</h2>
+      <p>Kanji from everyday anime moments — routines, school life, the seasons, and quiet domestic comfort.</p>
+    </div>
+    <div id="sol-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-sol">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('sol')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-sol">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-sol">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-sol"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-hsr">
+    <div class="page-header">
+      <h2>Honkai: Star Rail vocabulary</h2>
+      <p>Kanji from HSR — paths, elements, combat, lore terms, and the Astral Express.</p>
+    </div>
+    <div id="hsr-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-hsr">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('hsr')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-hsr">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-hsr">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-hsr"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-overwatch">
+    <div class="page-header">
+      <h2>Overwatch vocabulary</h2>
+      <p>Kanji from across the roster — Tank, Damage, and Support roles, plus universal franchise concepts like Omnics, Talon, and ultimate abilities.</p>
+    </div>
+    <div id="overwatch-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-overwatch">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('overwatch')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-overwatch">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-overwatch">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-overwatch"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-bl1">
+    <div class="page-header">
+      <h2>Borderlands 1 vocabulary</h2>
+      <p>Kanji from the original Vault Hunters — Roland, Lilith, Mordecai, and Brick — plus their skill trees and gear. Pick a character below, or Loot for the whole franchise's universal vocabulary.</p>
+    </div>
+    <div id="bl1-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-bl1">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('bl1')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-bl1">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-bl1">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-bl1"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-bl2">
+    <div class="page-header">
+      <h2>Borderlands 2 vocabulary</h2>
+      <p>Kanji from Axton, Maya, Salvador, Zer0, Gaige, and Krieg — their action skills, skill trees, and signature gear.</p>
+    </div>
+    <div id="bl2-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-bl2">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('bl2')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-bl2">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-bl2">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-bl2"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-tps">
+    <div class="page-header">
+      <h2>Pre-Sequel vocabulary</h2>
+      <p>Kanji from Athena, Wilhelm, Nisha, Claptrap, and Jack — Elpis, Hyperion, and Handsome Jack's rise to power.</p>
+    </div>
+    <div id="tps-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-tps">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('tps')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-tps">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-tps">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-tps"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-bl3">
+    <div class="page-header">
+      <h2>Borderlands 3 vocabulary</h2>
+      <p>Kanji from Amara, FL4K, Moze, and Zane — their action skills, skill trees, and pets/mechs.</p>
+    </div>
+    <div id="bl3-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-bl3">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('bl3')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-bl3">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-bl3">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-bl3"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-bl4">
+    <div class="page-header">
+      <h2>Borderlands 4 vocabulary</h2>
+      <p>Kanji from Vex, Harlowe, Rafa, and Amon — Kairos, phase energy, and the newest Vault Hunters.</p>
+    </div>
+    <div id="bl4-quiz-area"></div>
+    <div class="wrong-panel" id="wrong-panel-bl4">
+      <div class="wrong-panel-header" onclick="toggleWrongPanel('bl4')">
+        <div class="wrong-panel-title">Words to review <span class="wrong-count-badge" id="wrong-count-bl4">0</span></div>
+        <span class="wrong-panel-toggle" id="wrong-toggle-bl4">▼</span>
+      </div>
+      <div class="wrong-panel-body" id="wrong-body-bl4"><div class="wrong-panel-empty">No mistakes yet — keep it up!</div></div>
+    </div>
+  </div>
+
+  <script>
+  // ══════════════════════════════════════════════════════════════
+  //  BUNRUI KANJI — full quiz engine
+  //  No API key required. Built on a curated kanji dictionary.
+  //  Progress stored in localStorage per topic (bk_mastered_* / bk_wrong_*).
+  // ══════════════════════════════════════════════════════════════
+
+  // ── JLPT lists ────────────────────────────────────────────────
+  const JLPT_LISTS = {
+    5: '一二三四五六七八九十百千万円年月日時分秒週本人口手足目耳鼻顔声名前後左右上下中大小長高安新古好白黒赤青来行見聞食飲買売読書話教学校会社電話車山川田海空天気雨雪水火木土国語今何時曜先生学生家族父母兄姉弟妹子供友達男女',
+    4: '駅乗降地図近遠道路橋建物部屋窓台所寝室庭林森池畑村町市県都道府島区番号住所郵便送受取返荷物重軽引押丸四角形色様式字文章品物野菜果物肉魚鳥牛豚鶏羊猫犬虫花草葉根枝種茶皿箸器具使方法船飛機電信用意味思考感問答練習試験',
+    3: '政府経済産業農林資源環境技術科学研究開発教育文化芸術歴史伝統宗教法律規則社会福祉保健医療制度政策計画予算決定責任義務権利自由平和戦争外交貿易輸出輸入投資消費生産物価税金銀行保険株式市場競争企業経営管理組織労働雇用賃金収入支出利益損失',
+    2: '憲法議会選挙政党内閣首相大臣行政司法立法裁判所検察弁護士判決条約協定合意交渉調停制裁報復侵略占領解放独立統一連邦連合同盟条件根拠理由原因結果影響効果対策措置手段方針目標戦略実施評価検証改善革新創造発明発見探求研究調査分析考察結論提案勧告警告',
+    1: '鬱呪詛淀虞唆毅升璧瓦塞填窒寡剥剝喩瑞箋鍵錘酪麺甦冥誰朕呑而曖昧蜜蔑藍瞳瞭頃殻殼塁壇窪呆叱叩唄怨慄慟憧憬戟戴戻拶拭曙杉柵桁梗梶棺槽歪殴汎汚沃淫渦溺漬瀕灸狙瑠璃畏畝痕痩瘍盲眉睦礁籠粥糊紐綴緻翁耗肘腎腺艶芯苔茎莫菌蓋蛇蛋蜂蝕融衷裾褐詣謁謎貌賂賓贈軌辣迄迭逝逓邸酎醒醤醸閤阜陥隙雀霜靴頁頬顎鮮鯨麓黛'
+  };
+  Object.keys(JLPT_LISTS).forEach(k => {
+    JLPT_LISTS[k] = [...new Set(JLPT_LISTS[k].split('').filter(c => c.trim()))];
+  });
+
+  // ── PERMANENT FIX: deduplicate across levels ───────────────────
+  // The raw lists above can share characters (common kanji reused in
+  // longer compound words at "harder" levels). If a kanji is left in
+  // multiple level arrays, selecting only N5 could still pull a kanji
+  // that's ALSO present in the N1 array, making it look like an N1
+  // word leaked through a strict filter. Each kanji must belong to
+  // exactly ONE level — its lowest (easiest), matching real JLPT
+  // progression where once-learned kanji don't reappear as "new".
+  (function dedupeJlptLevels() {
+    const seen = new Set(); // characters already claimed by an easier level
+    [5, 4, 3, 2, 1].forEach(level => {
+      JLPT_LISTS[level] = JLPT_LISTS[level].filter(c => {
+        if (seen.has(c)) return false;   // already claimed by an easier level
+        seen.add(c);
+        return true;
+      });
+    });
+  })();
+
+  // ── Topic kanji pools ─────────────────────────────────────────
+  // FIX #8: removed simplified Chinese chars (猎 拟) and chars confirmed
+  // to have no Japanese readings (對 removed from sumo — use 対 instead).
+  const TOPIC_KANJI = {
+    vocab: null,
+    daily: [...new Set('一七万三上下乗九事二五人今仕休会体価値健先入全八公六出分前勉北医十千半南友台右名味呼品商問噌四困図国園地塩売多夜天嬉学安室家寒寝少屋山川左市年店強後徒忙怒怠急悲所扉払拶挨授料断早明昨昼時晴暇暑暖曇曜月朝村東林校森業楽橋機歓気油海涼温熱物理生町疲病痛百眠砂礼社秒空窓答米糖者聞肉船茶菜薬西言試話謝買路車迎近返送週遅道遠部酒醤野金銭鍵降雨雪電頼願風飛食飲駅験驚高魚麺'.split(''))],
+    // FIX: removed 對 (no Japanese readings), 磻 kept (has MEANING_OVERRIDE + reading override below)
+    sumo: [...new Set('一下乃代伯佐体俵倒健儀元典円凌出剋前剛剣力勝勢北千南厳友右司嘉土型場塩士壮大天奉威宇守安寄富将尊小山峰島嶽川左幕幣平序式弓引強後御志戸技投押拝拳指捌捻掌掛摩撲攻斗日昇明春時景朝木本東柱栃栄桜横櫻欧正武段洋津海清湘炎熊熱爪狼猛猿獅玉王琴生田番疾白相矢砂磨磻礼神空突竜篤紅納組結絞綱締縄美義羽翔翠股肩背胸脇脚腕腰腹膝良花若英荒落藤豊豪負貴足跟踵輝返里重金錦鎮関闘阿陽隆雅雲電霧青頭風首馬駕高魁鳳鵬鷲龍'.split(''))],
+    romance: [...new Set('久今会伴侶偶傍優兄別刻吉吻告命哀唇喜嘆夢夫契好妬妹妻姉婚嫉嬉子孤孫家宿寂寄寞幸弟心念怖思恋恐恥恨恵悲悼情惑惚惜想愛感慈慕慶憂憎憐憶憾手抱拒握断族昔望楽母永泣涙添清温父独白盟相瞬祈祥福端笑答約純絆結縁美羨肌艶華親触記誓身輝近返迷追逃逢遇運遠遺配雅離願麗'.split(''))],
+    shonen: [...new Set('不久乱争仏仲伝使信修倒傷優光克兵刀刃利制刹刺刻剛剣力努勇勝化卒印去友双叫召吠命哀哮喚喜喝嘆土圧地型壊士変夢天子孤宿対封射将屈崩帥師式弓弟強弾形彩征徒心必志怒怖恐恨悟悲意憎憤憶懸成戦才承技抗折拳挑挫援撃攻放救敗敵斬時服木未本来柔槍歓死殺毅気水永決泣滅激火炎烈無熱燃爆猛獄王界盾瞬矢砕破磨神空穿突競粋精約純絆統継練習者聖能芸英蛮血術衛裂覇覚解記誓説諦護負貫賢超越身軍速運過道遠邪醒金鉄銀鋼錬鍛鎧長門間闇闘防限陣除雄雷霊頭頼願風首鬼魂魔龍'.split(''))],
+    // Seinen: mature/psychological anime themes — inner conflict, moral
+    // ambiguity, society and work, violence and consequence, adult life,
+    // memory and time, isolation, ambition and downfall, redemption,
+    // mortality, class/economics, crime and justice, existential themes.
+    // 169 kanji total. Original vocabulary built around genre concepts,
+    // not sourced from any specific show's text.
+    seinen: [...new Set('上争人代任会体借倫傷働儚償再冷刃刑判刻力労務去取司味命回困在堕場壁壊外夜存孤実容富層崩差希常弱後復心念悔悩悪想意感憶戦戮手択拠捕搾支救敗断時暴更望未来格権欲正死殺気永決沈没治淡済滅焉無煙牲犠犯狂独現理生疎疑疲病療瞬社神税空立精級終組経絶織罪罰義老者職肉腐苦草落葛藤虚血行術衰裁裕観言記証諦諸讐貧責贖赦起距跡逮運過遠選配酒野金銃間関階離魔黙'.split(''))],
+    // Slice of Life: everyday domestic moments — routine, school life,
+    // seasons and home, small comforts, neighborly relationships, weather,
+    // meals, household objects, commuting, part-time work, friendship,
+    // small emotions, and celebrations. 162 kanji total. Original
+    // vocabulary built around genre concepts, not sourced from any show.
+    sol: [...new Set('上下世中人休会作係信側兄写凡出切前化卒友台号味員商喫噌器団図堵夕夜妹姉子安客室家宿寂寝射屋布常平幸幼店座庭廊弁弟当後微念思慣懐所手掃接放教散文断日明星昼曇書月朝束染校桜棚業横欒歩気汁洗活清濯火炊炬照燵物玄生番畳真祝祭穏空笑約紅紙縁習自花茶葉虹街襖見記試話誕課談買賀贈足踏車転近途道達部配間関除陽障隣集雑雪雲霜露静題食飯馴駅験'.split(''))],
+    // FIX: removed 猎 (simplified Chinese liè) and 拟 (simplified Chinese nǐ)
+    hsr: [...new Set('亡人仙会伝侍元光列創史命和哀商国士夢奥子存孤学宇宙巡希帝幻度従御悲憶戦技撃攻救教数旅星時智望模次歴毀氷河済滅火無爆物狩独理発皇盟祈神空約組縁織義者能虚覚記話説調識護起跡車速造運遺醒量銀間闘防雲雷願風騎'.split(''))],
+    // Overwatch: kanji across all three roles (Tank/Damage/Support) plus
+    // universal franchise concepts (Omnic, Talon, ultimate abilities, etc.)
+    // Overwatch: kanji across all three roles (Tank/Damage/Support), universal
+    // franchise concepts, and ultimate-ability themes — barrage/burst damage,
+    // area-zone control, transformations, revival effects, tactical
+    // repositioning, death-triggered ultimates, deployable devices, and
+    // team-wide buff/heal fields. 168 kanji total.
+    overwatch: [...new Set('一世中丸乱争人令任伏体作侵倍光入全共凍処刃刑前剰力加効動務勝化原双司合吸味和員回囲域場増壁変奇始守密射展幅幕平度引弾形影復念戦技拘拳掴援撃撤操支放敗敵斉方時暗暴最期束械極機死殉殺治波活浄潜火炎無焼燃爆牲犠狙生界療癒発盾瞬矢砲祈秘移究突範組結線縦織置羽舞英蘇術衝装襲覚角解設護走超越踏身転輪退逆速進過遠部配醒重鉄鋼開間陣隔障隠雄集領風鳴'.split(''))],
+    // Borderlands games each use the character-roster system (BL_CHARACTERS
+    // below) instead of a single flat pool — null here means "this mode's
+    // question pool is built dynamically from the selected character".
+    bl1: null,
+    bl2: null,
+    tps: null,
+    bl3: null,
+    bl4: null,
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  //  BORDERLANDS CHARACTER ROSTERS
+  //  ─────────────────────────────────────────────────────────────
+  //  Each Borderlands game tab uses its own playable-character roster
+  //  as "difficulty" buttons instead of Easy/Medium/Hard. Selecting a
+  //  character narrows the question pool to kanji tied to that
+  //  character's skill trees, action skills, and signature traits.
+  //  "Loot" is an all-encompassing tier — Maliwan, Vault Hunter,
+  //  Eridian, manufacturers, rarity tiers — shared across every game.
+  // ══════════════════════════════════════════════════════════════
+  const LOOT_KANJI = [...new Set('略奪宝箱武器銃弾盾防具改造遺物伝説希少灰金額紫橙緑青白賢者印杖製造企業契約金庫秘密扉鍵未知異星遺跡虚空'.split(''))];
+
+  const BL_CHARACTERS = {
+    bl1: {
+      'Roland':   [...new Set('兵士援護砲塔盾医療回復補給弾薬展開防御'.split(''))],
+      'Lilith':   [...new Set('幻影瞬間移動透明霊魂衝撃波女王紋章相'.split(''))],
+      'Mordecai': [...new Set('狙撃鳥獣弓矢眼鋭命中遠距離猟師翼相棒'.split(''))],
+      'Brick':    [...new Set('拳怒狂乱破壊力強腕肉体爆発耐久殴打'.split(''))],
+      'Loot':     LOOT_KANJI,
+    },
+    bl2: {
+      'Axton':    [...new Set('兵砲塔展開援護爆発援軍配置防衛狙'.split(''))],
+      'Maya':     [...new Set('封印浮遊調和混沌異変治癒守護光'.split(''))],
+      'Salvador': [...new Set('双銃乱射筋肉怒涛強欲暴走連射狂'.split(''))],
+      'Zer0':     [...new Set('影分身刃静寂狙撃零号暗殺者疾風'.split(''))],
+      'Gaige':    [...new Set('機械腕雷撃自律人形相棒火花創造混'.split(''))],
+      'Krieg':    [...new Set('斧狂乱叫喚自傷血肉爆発精神崩壊'.split(''))],
+      'Loot':     LOOT_KANJI,
+    },
+    tps: {
+      'Athena':   [...new Set('盾投擲守護反射格闘槍穂先剣士英雄'.split(''))],
+      'Wilhelm':  [...new Set('機兵改造金属冷酷支配修復強化'.split(''))],
+      'Nisha':    [...new Set('銃早撃保安官法律処刑命中精密'.split(''))],
+      'Claptrap': [...new Set('車輪陽気愉快爆発混乱友情迷惑騒音'.split(''))],
+      'Jack':     [...new Set('偽者支配欲望独裁狡猾野望危険操作'.split(''))],
+      'Loot':     LOOT_KANJI,
+    },
+    bl3: {
+      'Amara':    [...new Set('拳撃啓示霊腕浮上連撃神秘戦士強打'.split(''))],
+      'FL4K':     [...new Set('獣従順狩人罠隠密進化牙爪相棒'.split(''))],
+      'Moze':     [...new Set('戦車砲撃鋼鉄鬼熊機甲操縦轟'.split(''))],
+      'Zane':     [...new Set('分身潜入冷静偵察協力策略無音'.split(''))],
+      'Loot':     LOOT_KANJI,
+    },
+    bl4: {
+      'Vex':      [...new Set('位相幽体重力分裂猫精霊歪曲呪'.split(''))],
+      'Harlowe':  [...new Set('停止凍結結合磁力科学者守備領域'.split(''))],
+      'Rafa':     [...new Set('外骨格刃砲台機動戦士改造両刃'.split(''))],
+      'Amon':     [...new Set('鍛冶斧盾炎凍咆哮儀式戦士頑強'.split(''))],
+      'Loot':     LOOT_KANJI,
+    },
+  };
+
+  const BL_MODES = Object.keys(BL_CHARACTERS); // ['bl1','bl2','tps','bl3','bl4']
+
+  // Anime genre tabs grouped under the "Anime" nav dropdown
+  const ANIME_MODES = ['shonen', 'romance', 'seinen', 'sol'];
+
+  // Per-mode SET of selected characters (multi-select, like the vocab
+  // N5-N1 level pills). Defaults to just the first character in each
+  // roster being active.
+  const activeCharacter = {};
+  BL_MODES.forEach(m => { activeCharacter[m] = new Set([Object.keys(BL_CHARACTERS[m])[0]]); });
+
+
+  // ── Level filter (vocab mode only) ───────────────────────────
+  const activeLevels = new Set([1, 2, 3, 4, 5]);
+
+  function refreshActiveQuiz() {
+    const activePage = document.querySelector('.page.active');
+    if (!activePage) return;
+    const mode = activePage.id.replace('page-', '');
+    fetchQuestion(mode);
+  }
+
+  function toggleLevel(n) {
+    if (activeLevels.has(n) && activeLevels.size === 1) return;
+    activeLevels.has(n) ? activeLevels.delete(n) : activeLevels.add(n);
+    document.querySelector('.level-btn[data-level="' + n + '"]').classList.toggle('active', activeLevels.has(n));
+    updateAllBottomBars();
+    refreshActiveQuiz();
+  }
+
+  function selectAllLevels() {
+    [1,2,3,4,5].forEach(n => {
+      activeLevels.add(n);
+      document.querySelector('.level-btn[data-level="' + n + '"]').classList.add('active');
+    });
+    updateAllBottomBars();
+    refreshActiveQuiz();
+  }
+
+  function clearAllLevels() {
+    [1,2,3,4].forEach(n => {
+      activeLevels.delete(n);
+      document.querySelector('.level-btn[data-level="' + n + '"]').classList.remove('active');
+    });
+    activeLevels.add(5);
+    document.querySelector('.level-btn[data-level="5"]').classList.add('active');
+    updateAllBottomBars();
+    refreshActiveQuiz();
+  }
+
+  // ── Topic difficulty filter (Easy / Medium / Hard) ─────────────
+  // Applies to all non-vocab topic pages. Controls which JLPT levels
+  // are used for DISTRACTOR selection (the question kanji always comes
+  // from the topic's own curated pool — see getTopicDistractorLevels).
+  //   Easy   → N5 + N4 only      (simplest wrong answers)
+  //   Medium → N5 through N2     (moderate wrong answers)
+  //   Hard   → N5 through N1     (all levels, hardest wrong answers)
+  let topicDifficulty = 'easy';
+
+  const DIFFICULTY_LEVELS = {
+    easy:   [5, 4],
+    medium: [5, 4, 3, 2],
+    hard:   [5, 4, 3, 2, 1],
+  };
+
+  const DIFFICULTY_HINTS = {
+    easy:   'N5 + N4',
+    medium: 'N5 \u2013 N2',
+    hard:   'N5 \u2013 N1',
+  };
+
+  function getTopicDistractorLevels() {
+    return DIFFICULTY_LEVELS[topicDifficulty];
+  }
+
+  function setDifficulty(level) {
+    if (!DIFFICULTY_LEVELS[level]) return;
+    topicDifficulty = level;
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.diff === level);
+    });
+    const hint = document.getElementById('difficulty-hint');
+    if (hint) hint.textContent = DIFFICULTY_HINTS[level];
+    updateAllBottomBars();
+    refreshActiveQuiz();
+  }
+
+  // ── In-flight fetch cancellation (Bug #7) ─────────────────────
+  // Each fetchQuestion call gets a token; if a newer call starts,
+  // the old one checks the token before rendering and bails out.
+  const fetchTokens = {};
+
+  // ══════════════════════════════════════════════════════════════
+  //  PERSISTENCE — localStorage
+  // ══════════════════════════════════════════════════════════════
+  const MODES = ['vocab','daily','sumo','romance','shonen','seinen','sol','hsr','overwatch','bl1','bl2','tps','bl3','bl4'];
+
+  function loadMastered(mode) {
+    try { return JSON.parse(localStorage.getItem('bk_mastered_' + mode) || '{}'); }
+    catch(e) { return {}; }
+  }
+  function saveMastered(mode, mastered) {
+    try { localStorage.setItem('bk_mastered_' + mode, JSON.stringify(mastered)); } catch(e) {}
+  }
+  function loadWrongWords(mode) {
+    try { return JSON.parse(localStorage.getItem('bk_wrong_' + mode) || '[]'); }
+    catch(e) { return []; }
+  }
+  function saveWrongWords(mode, words) {
+    try { localStorage.setItem('bk_wrong_' + mode, JSON.stringify(words)); } catch(e) {}
+  }
+  function loadSessionStats(mode) {
+    // score/total are session-only (not persisted), but lifetime correct/total are
+    try { return JSON.parse(localStorage.getItem('bk_stats_' + mode) || '{"correct":0,"total":0}'); }
+    catch(e) { return {correct:0, total:0}; }
+  }
+  function saveSessionStats(mode) {
+    try {
+      localStorage.setItem('bk_stats_' + mode, JSON.stringify({
+        correct: state[mode].lifetimeCorrect,
+        total:   state[mode].lifetimeTotal
+      }));
+    } catch(e) {}
+  }
+
+  // Pinned kanji are a deliberate bookmark. Persisted across reloads like
+  // mastery/mistakes, but cleared together with everything else by
+  // Reset Progress (see resetProgress) — Reset Progress wipes a subject
+  // back to a completely clean slate.
+  function loadPinned(mode) {
+    try { return JSON.parse(localStorage.getItem('bk_pinned_' + mode) || '{}'); }
+    catch(e) { return {}; }
+  }
+  function savePinned(mode, pinned) {
+    try { localStorage.setItem('bk_pinned_' + mode, JSON.stringify(pinned)); } catch(e) {}
+  }
+
+  // Mastered kanji details (readings + meaning) captured at the moment
+  // a kanji crosses the 3-in-a-row threshold. Kept separate from the
+  // `mastered` counter object so existing counting/filtering logic is
+  // untouched — this is purely additive, for display purposes.
+  function loadMasteredDetails(mode) {
+    try { return JSON.parse(localStorage.getItem('bk_mastered_details_' + mode) || '{}'); }
+    catch(e) { return {}; }
+  }
+  function saveMasteredDetails(mode, details) {
+    try { localStorage.setItem('bk_mastered_details_' + mode, JSON.stringify(details)); } catch(e) {}
+  }
+
+  // Two-step reset (avoids window.confirm, which is blocked/no-ops in
+  // sandboxed iframes like the Claude artifact viewer — that was the
+  // actual cause of "Reset Progress does nothing").
+  const resetArmed = {};
+
+  function resetProgress(mode) {
+    const btn = document.getElementById('reset-btn-' + mode);
+
+    if (!resetArmed[mode]) {
+      // First click: arm it, ask for confirmation in-button
+      resetArmed[mode] = true;
+      if (btn) {
+        btn.textContent = 'Click again to confirm';
+        btn.classList.add('armed');
+      }
+      // Auto-disarm after 4 seconds if not confirmed
+      clearTimeout(resetArmed[mode + '_timer']);
+      resetArmed[mode + '_timer'] = setTimeout(function() {
+        resetArmed[mode] = false;
+        if (btn) { btn.textContent = 'Reset Progress'; btn.classList.remove('armed'); }
+      }, 4000);
+      return;
+    }
+
+    // Second click within the window: actually reset everything
+    clearTimeout(resetArmed[mode + '_timer']);
+    resetArmed[mode] = false;
+
+    try {
+      localStorage.removeItem('bk_mastered_' + mode);
+      localStorage.removeItem('bk_mastered_details_' + mode);
+      localStorage.removeItem('bk_wrong_' + mode);
+      localStorage.removeItem('bk_stats_' + mode);
+      localStorage.removeItem('bk_pinned_' + mode);
+    } catch(e) {}
+
+    // Rebuild state[mode] from scratch rather than mutating in place,
+    // guaranteeing no stale references survive anywhere.
+    // Reset Progress now clears everything for this subject, including
+    // pinned kanji.
+    state[mode] = {
+      score:           0,
+      total:           0,
+      answered:        false,
+      streak:          0,
+      mastered:        {},
+      masteredDetails: {},
+      wrongWords:      [],
+      pinned:          {},
+      lifetimeCorrect: 0,
+      lifetimeTotal:   0,
+    };
+    saveMastered(mode, {});
+    saveMasteredDetails(mode, {});
+    saveWrongWords(mode, []);
+    savePinned(mode, {});
+    saveSessionStats(mode);
+
+    quizData[mode] = null;
+
+    updateWrongPanel(mode);
+    updateBottomBar(mode);
+    fetchQuestion(mode);
+  }
+
+  // ── Per-mode state ────────────────────────────────────────────
+  const state = {};
+  MODES.forEach(m => {
+    const ls = loadSessionStats(m);
+    state[m] = {
+      score:          0,         // session score (resets on refresh)
+      total:          0,         // session total (resets on refresh)
+      answered:       false,
+      streak:         0,
+      mastered:       loadMastered(m),    // Bug #3 fix: keyed per mode
+      masteredDetails: loadMasteredDetails(m), // { kanji: { word, readings, meaning } }
+      wrongWords:     loadWrongWords(m),
+      pinned:         loadPinned(m),      // { kanji: { word, readings, meaning } }
+      lifetimeCorrect: ls.correct,        // Bug #4: persisted lifetime stats
+      lifetimeTotal:   ls.total,
+    };
+  });
+
+  const quizData = {};
+
+  // ══════════════════════════════════════════════════════════════
+  //  POOL HELPERS
+  // ══════════════════════════════════════════════════════════════
+  function getTopicPool(topicChars) {
+    if (!topicChars) {
+      const s = new Set();
+      activeLevels.forEach(n => JLPT_LISTS[n].forEach(c => s.add(c)));
+      return [...s];
+    }
+    return [...topicChars];
+  }
+
+  // Resolves the correct kanji array for a mode: for Borderlands game
+  // modes, this is the UNION of every currently selected character's
+  // (and/or Loot's) kanji from BL_CHARACTERS — multiple characters can
+  // be active at once, the same way multiple JLPT levels can on Vocab.
+  // For everything else, it's TOPIC_KANJI[mode] (or null for vocab,
+  // which falls back to the JLPT pool in getTopicPool).
+  function getModeTopicChars(mode) {
+    if (BL_MODES.includes(mode)) {
+      const selected = activeCharacter[mode];
+      const roster   = BL_CHARACTERS[mode];
+      const s = new Set();
+      selected.forEach(name => {
+        (roster[name] || []).forEach(c => s.add(c));
+      });
+      // Safety net: if somehow nothing is selected, fall back to Loot
+      // so the quiz never silently breaks.
+      return s.size > 0 ? [...s] : LOOT_KANJI;
+    }
+    return TOPIC_KANJI[mode];
+  }
+
+  // getJlptPool() builds the distractor pool for TOPIC modes only, using
+  // the Easy/Medium/Hard difficulty selector (not the vocab N5-N1 filter,
+  // which is a separate, vocab-only control).
+  function getJlptPool() {
+    const s = new Set();
+    getTopicDistractorLevels().forEach(n => JLPT_LISTS[n].forEach(c => s.add(c)));
+    return [...s];
+  }
+
+  function getPool(topicChars) { return getTopicPool(topicChars); }
+
+  function getActivePool(mode) {
+    const full     = getTopicPool(getModeTopicChars(mode));
+    const mastered = state[mode].mastered;
+    const pinned   = state[mode].pinned;
+
+    // Pinned kanji are a deliberate, separate dictionary the user chose to
+    // keep studying — mastery never removes them from rotation, even once
+    // their consecutive-correct counter hits 3. Only unpinning does.
+    //
+    // BUG FIX: previously this only exempted pinned kanji that were ALREADY
+    // inside `full`. For vocab mode, `full` is pre-filtered by the active
+    // JLPT levels (N5-N1 pills), so a pinned word whose level got
+    // deselected would vanish from rotation entirely — the exemption never
+    // got a chance to apply. Fix: explicitly union in every pinned kanji
+    // that belongs to this mode, regardless of the current level filter.
+    const result = new Set(full.filter(c => pinned[c] || (mastered[c] || 0) < 3));
+    Object.keys(pinned).forEach(c => result.add(c));
+    return [...result];
+  }
+
+  // ── Kanji dictionary data source ───────────────────────────────
+  const DICTIONARY_API = 'https://kanjiapi.dev/v1';
+  const kanjiCache = {};
+
+  // Overrides for kanji where the dictionary source returns unhelpful or missing data
+  const MEANING_OVERRIDES = {
+    '栃': ['horse chestnut tree', 'tochi tree'],
+    '峠': ['mountain pass'],
+    '辻': ['street corner', 'crossroads'],
+    '榊': ['sacred Shinto tree', 'sakaki tree'],
+    '畠': ['dry field', 'upland field'],
+    '磻': ['fishing rock', 'weir rock'],
+    '嶽': ['high peak', 'lofty mountain'],
+    '踵': ['heel', 'to follow closely'],
+    '跟': ['heel', 'to follow'],
+    '爪': ['claw', 'nail', 'talon'],
+    '脇': ['armpit', 'side', 'flank'],
+  };
+  // Fallback readings for kanji the dictionary source may return without readings
+  const READING_OVERRIDES = {
+    '磻': { kun: ['ばん'], on: [] },
+    '嶽': { kun: ['たけ'], on: ['ガク'] },
+    '踵': { kun: ['かかと', 'きびす'], on: ['ショウ'] },
+    '跟': { kun: ['かかと'], on: ['コン'] },
+    '爪':  { kun: ['つめ', 'つま'], on: ['ソウ'] },
+    '脇': { kun: ['わき'], on: ['キョウ'] },
+  };
+
+  async function fetchKanji(char) {
+    if (kanjiCache[char]) return kanjiCache[char];
+    const res  = await fetch(DICTIONARY_API + '/kanji/' + encodeURIComponent(char));
+    const data = await res.json();
+
+    // Apply meaning override
+    if (MEANING_OVERRIDES[char]) {
+      data.meanings = MEANING_OVERRIDES[char];
+    } else if (data.meanings && data.meanings.length > 0) {
+      // Bug #2: strip meta-labels like (kokuji); if all stripped, mark unusable
+      data.meanings = data.meanings.filter(m => !/^\(.*\)$/.test(m));
+      // Leave empty — isUsable will reject it, removing it from pool
+    }
+
+    // Apply reading override (Bug #9: ensure readings exist)
+    if (READING_OVERRIDES[char]) {
+      if (!data.kun_readings || data.kun_readings.length === 0)
+        data.kun_readings = READING_OVERRIDES[char].kun;
+      if (!data.on_readings || data.on_readings.length === 0)
+        data.on_readings  = READING_OVERRIDES[char].on;
+    }
+
+    kanjiCache[char] = data;
+    return data;
+  }
+
+  // Bug #2 fix: isUsable now also rejects empty meanings (after stripping meta-labels)
+  function isUsable(d, jlptOnly) {
+    if (!d || !d.meanings || d.meanings.length === 0) return false;
+    if (!d.kun_readings || !d.on_readings) return false;
+    if (d.kun_readings.length === 0 && d.on_readings.length === 0) return false;
+    // jlptOnly is only true for vocab mode. The pool itself (built from
+    // the now-deduplicated JLPT_LISTS) is the authoritative source of
+    // truth for which levels are active — this check is a secondary
+    // safety net using the live API's own jlpt field, where available.
+    if (jlptOnly && d.jlpt !== null && d.jlpt !== undefined && !activeLevels.has(d.jlpt)) return false;
+    return true;
+  }
+
+  async function firstUsable(chars, jlptOnly) {
+    const results = await Promise.all(chars.map(c => fetchKanji(c).catch(() => null)));
+    return results.find(d => d && isUsable(d, jlptOnly)) || null;
+  }
+
+  // ── Theme toggle (dark by default, light is opt-in) ────────────
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isLight = html.classList.toggle('light-mode');
+    try { localStorage.setItem('bk_theme', isLight ? 'light' : 'dark'); } catch(e) {}
+    updateThemeButton();
+  }
+
+  function updateThemeButton() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const isLight = document.documentElement.classList.contains('light-mode');
+    btn.textContent = isLight ? '🌙' : '☀️';
+    btn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode';
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', function() {
+    updateThemeButton();
+    MODES.forEach(m => { if (state[m].wrongWords.length) updateWrongPanel(m); });
+    // Vocab is the first page shown — its filter div is already visible by
+    // default in the HTML (filter-vocab has no inline display:none).
+    fetchQuestion('vocab');
+  });
+
+  // ── Navigation ────────────────────────────────────────────────
+  function switchPage(mode) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-dropdown-item').forEach(t => t.classList.remove('active'));
+    document.getElementById('nav-dropdown-bl').classList.remove('active');
+    document.getElementById('nav-dropdown-anime').classList.remove('active');
+
+    document.getElementById('page-' + mode).classList.add('active');
+
+    if (BL_MODES.includes(mode)) {
+      // Highlight the dropdown trigger itself plus the specific game inside it
+      document.getElementById('nav-dropdown-bl').classList.add('active');
+      const item = document.getElementById('tab-' + mode);
+      if (item) item.classList.add('active');
+    } else if (ANIME_MODES.includes(mode)) {
+      document.getElementById('nav-dropdown-anime').classList.add('active');
+      const item = document.getElementById('tab-' + mode);
+      if (item) item.classList.add('active');
+    } else {
+      const tab = document.getElementById('tab-' + mode);
+      if (tab) tab.classList.add('active');
+    }
+
+    // Swap which filter UI is shown: JLPT pills (vocab), Easy/Medium/Hard
+    // (most topics), or character roster (Borderlands games).
+    const vocabFilter = document.getElementById('filter-vocab');
+    const topicFilter  = document.getElementById('filter-topic');
+    const charFilter   = document.getElementById('filter-character');
+    if (vocabFilter && topicFilter && charFilter) {
+      vocabFilter.style.display = mode === 'vocab' ? 'flex' : 'none';
+      topicFilter.style.display = (mode !== 'vocab' && !BL_MODES.includes(mode)) ? 'flex' : 'none';
+      charFilter.style.display  = BL_MODES.includes(mode) ? 'flex' : 'none';
+      if (BL_MODES.includes(mode)) renderCharacterButtons(mode);
+    }
+
+    fetchQuestion(mode);
+  }
+
+  // Build the character-roster buttons for a Borderlands game tab
+  function renderCharacterButtons(mode) {
+    const container = document.getElementById('character-toggles');
+    if (!container) return;
+    const roster   = BL_CHARACTERS[mode];
+    const selected = activeCharacter[mode];
+    container.innerHTML = Object.keys(roster).map(name => {
+      const isLoot = name === 'Loot';
+      const cls = 'difficulty-btn' + (selected.has(name) ? ' active' : '') + (isLoot ? ' loot-btn' : '');
+      return '<button class="' + cls + '" data-char="' + esc(name) + '" onclick="toggleCharacter(\'' + mode + '\',\'' + esc(name) + '\')">' + esc(name) + '</button>';
+    }).join('');
+  }
+
+  // Toggle a character on/off for this mode's pool (multi-select).
+  // Mirrors toggleLevel's behaviour: refuses to deselect the very last
+  // active character, so the pool can never end up empty.
+  function toggleCharacter(mode, name) {
+    const selected = activeCharacter[mode];
+    if (!BL_CHARACTERS[mode] || !BL_CHARACTERS[mode][name]) return;
+    if (selected.has(name)) {
+      if (selected.size === 1) return; // keep at least one selected
+      selected.delete(name);
+    } else {
+      selected.add(name);
+    }
+    renderCharacterButtons(mode);
+    updateAllBottomBars();
+    refreshActiveQuiz();
+  }
+
+  // Resolve which Borderlands mode is currently visible, for the
+  // All/None character buttons (which don't take a mode argument).
+  function getActiveBlMode() {
+    const activePage = document.querySelector('.page.active');
+    if (!activePage) return null;
+    const mode = activePage.id.replace('page-', '');
+    return BL_MODES.includes(mode) ? mode : null;
+  }
+
+  function selectAllCharacters() {
+    const mode = getActiveBlMode();
+    if (!mode) return;
+    Object.keys(BL_CHARACTERS[mode]).forEach(name => activeCharacter[mode].add(name));
+    renderCharacterButtons(mode);
+    updateAllBottomBars();
+    refreshActiveQuiz();
+  }
+
+  function clearAllCharacters() {
+    const mode = getActiveBlMode();
+    if (!mode) return;
+    // Keep at least one selected — default back to just the first character
+    const first = Object.keys(BL_CHARACTERS[mode])[0];
+    activeCharacter[mode] = new Set([first]);
+    renderCharacterButtons(mode);
+    updateAllBottomBars();
+    refreshActiveQuiz();
+  }
+
+  // ── Wrong/Mastered panel ──────────────────────────────────────
+  function toggleWrongPanel(mode) {
+    document.getElementById('wrong-body-' + mode).classList.toggle('open');
+    document.getElementById('wrong-toggle-' + mode).classList.toggle('open');
+  }
+
+  // Tracks which review tab (mistakes/pinned/mastered) is currently shown
+  // per mode, so re-rendering the panel (e.g. after a pin/unpin) doesn't
+  // silently snap the view back to "Mistakes".
+  const activeReviewTab = {};
+
+  function showWrongTab(mode, tab) {
+    activeReviewTab[mode] = tab;
+    ['mistakes','pinned','mastered'].forEach(t => {
+      var btn = document.getElementById('review-tab-' + t + '-' + mode);
+      if (btn) btn.classList.toggle('active', t === tab);
+      var panel = document.getElementById('review-' + t + '-' + mode);
+      if (panel) panel.style.display = (t === tab) ? '' : 'none';
+    });
+  }
+
+  // ── Pin / unpin a kanji (bookmark, independent of mastery progress) ──
+  // Reads the current question straight from quizData[mode] — avoids
+  // passing kanji/readings through inline onclick JSON (that pattern
+  // broke before when meanings contained quotes/apostrophes).
+  function togglePinCurrent(mode) {
+    const data = quizData[mode];
+    if (!data) return;
+    const s = state[mode];
+    const word = data.word;
+
+    if (s.pinned[word]) {
+      delete s.pinned[word];
+    } else {
+      const allReadings = (data.kun_readings || []).map(r => r.replace(/\./g, ''))
+        .concat(data.on_readings || []);
+      s.pinned[word] = { word: word, readings: allReadings, meaning: data.correct || '' };
+    }
+    savePinned(mode, s.pinned);
+    updateWrongPanel(mode);
+    updateBottomBar(mode); // so Export CSV appears/disappears immediately, not after the next question
+
+    const pinBtn = document.getElementById('pin-toggle-' + mode);
+    if (pinBtn) {
+      const nowPinned = !!s.pinned[word];
+      pinBtn.classList.toggle('pinned', nowPinned);
+      pinBtn.textContent = nowPinned ? '\u2605' : '\u2606';
+      pinBtn.title = nowPinned ? 'Unpin this kanji' : 'Pin this kanji';
+    }
+  }
+
+  function unpinFromPanel(mode, word) {
+    const s = state[mode];
+    delete s.pinned[word];
+    savePinned(mode, s.pinned);
+    updateWrongPanel(mode);
+    updateBottomBar(mode); // so Export CSV disappears immediately if this was the last pin
+    const pinBtn = document.getElementById('pin-toggle-' + mode);
+    if (pinBtn && quizData[mode] && quizData[mode].word === word) {
+      pinBtn.classList.remove('pinned');
+      pinBtn.textContent = '\u2606';
+      pinBtn.title = 'Pin this kanji';
+    }
+  }
+
+  // Shared row renderer used by Mistakes, Pinned, and Mastered so all
+  // three tabs look consistent. The last column varies by tab:
+  //   - Mistakes: a Jisho.org link for the kanji (replaces "Your answer")
+  //   - Pinned/Mastered: a ✕ remove button (via removeOnclick)
+  function reviewRow(word, readingsArr, meaning, opts) {
+    opts = opts || {};
+    const readingsText = (readingsArr || []).filter(Boolean).join('\u3001');
+    let lastCol;
+    if (opts.jisho) {
+      const jishoUrl = 'https://jisho.org/search/' + encodeURIComponent(word);
+      lastCol = '<div class="wrong-word-jisho"><a href="' + jishoUrl + '" target="_blank" rel="noopener" title="Look up on Jisho.org">Link \u2197</a></div>';
+    } else if (opts.removeOnclick) {
+      lastCol = '<div class="wrong-word-remove"><button class="row-remove-btn" onclick="' + opts.removeOnclick + '" title="Remove">\u2715</button></div>';
+    } else {
+      lastCol = '<div></div>';
+    }
+    return '<div class="wrong-word-item">' +
+        '<div class="wrong-word-jp">' + esc(word) + '</div>' +
+        '<div class="wrong-word-reading">' + esc(readingsText) + '</div>' +
+        '<div class="wrong-word-correct">' + esc(meaning) + '</div>' +
+        lastCol +
+      '</div>';
+  }
+
+  function updateWrongPanel(mode) {
+    const s     = state[mode];
+    const body  = document.getElementById('wrong-body-' + mode);
+    const badge = document.getElementById('wrong-count-' + mode);
+    const tog   = document.getElementById('wrong-toggle-' + mode);
+    if (!body) return;
+
+    badge.textContent = s.wrongWords.length;
+
+    const masteredList = Object.entries(s.mastered)
+      .filter(([,v]) => v >= 3)
+      .map(([k]) => s.masteredDetails[k] || { word: k, readings: [], meaning: '' });
+
+    const pinnedList = Object.values(s.pinned);
+
+    if (!s.wrongWords.length && !masteredList.length && !pinnedList.length) {
+      body.innerHTML = '<div class="wrong-panel-empty">No mistakes, pins, or mastered kanji yet.</div>';
+      return;
+    }
+
+    body.classList.add('open');
+    tog.classList.add('open');
+
+    const colsHeader = function(lastLabel) {
+      return '<div class="wrong-panel-cols"><span>Kanji</span><span>Readings</span><span>' +
+        (lastLabel === 'Jisho' ? 'Correct' : 'Meaning') + '</span><span>' + lastLabel + '</span></div>';
+    };
+
+    const mistakesHtml = s.wrongWords.length
+      ? colsHeader('Jisho') +
+        s.wrongWords.map(w =>
+          reviewRow(w.word, w.readings || [w.reading], w.correct, { jisho: true })
+        ).join('')
+      : '<div class="wrong-panel-empty">No mistakes yet — keep it up!</div>';
+
+    const pinnedHtml = pinnedList.length
+      ? colsHeader('Remove') +
+        pinnedList.map(p =>
+          reviewRow(p.word, p.readings, p.meaning,
+            { removeOnclick: 'unpinFromPanel(\'' + mode + '\',\'' + esc(p.word) + '\')' })
+        ).join('')
+      : '<div class="wrong-panel-empty">No pinned kanji yet — tap \u2606 on a word card to pin it.</div>';
+
+    const masteredHtml = masteredList.length
+      ? colsHeader('Remove') +
+        masteredList.map(m =>
+          reviewRow(m.word, m.readings, m.meaning,
+            { removeOnclick: 'unmasterFromPanel(\'' + mode + '\',\'' + esc(m.word) + '\')' })
+        ).join('')
+      : '<div class="wrong-panel-empty">Nothing mastered yet.</div>';
+
+    // Preserve whichever tab was active before this re-render (defaults to mistakes)
+    const current = activeReviewTab[mode] || 'mistakes';
+
+    body.innerHTML =
+      '<div class="review-tabs">' +
+        '<button class="review-tab' + (current==='mistakes'?' active':'') + '" id="review-tab-mistakes-' + mode + '" onclick="showWrongTab(\'' + mode + '\',\'mistakes\')">Mistakes (' + s.wrongWords.length + ')</button>' +
+        '<button class="review-tab' + (current==='pinned'?' active':'') + '" id="review-tab-pinned-' + mode + '" onclick="showWrongTab(\'' + mode + '\',\'pinned\')">Pinned (' + pinnedList.length + ')</button>' +
+        '<button class="review-tab' + (current==='mastered'?' active':'') + '" id="review-tab-mastered-' + mode + '" onclick="showWrongTab(\'' + mode + '\',\'mastered\')">Mastered (' + masteredList.length + ')</button>' +
+      '</div>' +
+      '<div id="review-mistakes-' + mode + '" style="display:' + (current==='mistakes'?'':'none') + '">' + mistakesHtml + '</div>' +
+      '<div id="review-pinned-' + mode + '" style="display:' + (current==='pinned'?'':'none') + '">' + pinnedHtml + '</div>' +
+      '<div id="review-mastered-' + mode + '" style="display:' + (current==='mastered'?'':'none') + '">' + masteredHtml + '</div>';
+  }
+
+  // Remove a kanji from the Mastered list (puts it back into rotation).
+  // Unlike unpinning, this also resets its consecutive-correct counter
+  // so it will actually reappear in the quiz pool again.
+  function unmasterFromPanel(mode, word) {
+    const s = state[mode];
+    delete s.mastered[word];
+    delete s.masteredDetails[word];
+    saveMastered(mode, s.mastered);
+    saveMasteredDetails(mode, s.masteredDetails);
+    updateWrongPanel(mode);
+    updateBottomBar(mode);
+  }
+
+  // ── Bottom bar ────────────────────────────────────────────────
+  function updateBottomBar(mode) {
+    const el = document.getElementById('bottom-bar-' + mode);
+    if (!el) return;
+    const activePool  = getActivePool(mode);
+    const masteredCnt = Object.values(state[mode].mastered).filter(v => v >= 3).length;
+    const pinnedCnt   = Object.keys(state[mode].pinned).length;
+
+    const exportBtn = pinnedCnt > 0
+      ? '<button class="reset-btn" id="export-btn-' + mode + '" onclick="exportPinnedCsv(\'' + mode + '\')" title="Export pinned kanji as CSV for Anki">Export CSV</button>'
+      : '';
+
+    el.innerHTML =
+      '<span class="pool-size-note">' +
+        activePool.length + ' remaining' +
+        (masteredCnt > 0 ? ' · <strong style="color:var(--red)">' + masteredCnt + ' mastered</strong>' : '') +
+      '</span>' +
+      '<div style="display:flex;gap:8px;align-items:center;">' +
+        exportBtn +
+        '<button class="reset-btn" id="reset-btn-' + mode + '" onclick="resetProgress(\'' + mode + '\')">Reset Progress</button>' +
+      '</div>';
+  }
+
+  function updateAllBottomBars() {
+    MODES.forEach(m => updateBottomBar(m));
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  QUESTION BUILDER
+  // ══════════════════════════════════════════════════════════════
+  async function buildQuestion(mode) {
+    const topicChars  = getModeTopicChars(mode);
+    const isVocab     = !topicChars;
+    const minPool     = isVocab ? 8 : 4;
+    const jlptOnly    = isVocab;
+
+    let questionPool = getActivePool(mode);
+    if (questionPool.length < minPool) {
+      questionPool = getTopicPool(topicChars);
+    }
+    if (questionPool.length < minPool) {
+      throw new Error(
+        isVocab
+          ? 'Not enough kanji in the selected levels. Try selecting more.'
+          : 'This topic does not have enough kanji. Please report this as a bug.'
+      );
+    }
+
+    let distractorPool;
+    if (isVocab) {
+      distractorPool = questionPool;
+    } else {
+      const jlpt = getJlptPool();
+      distractorPool = jlpt.length >= 6 ? jlpt : getTopicPool(topicChars);
+    }
+
+    const qShuffled = shuffle([...questionPool]);
+
+    let qData = null;
+    for (var i = 0; i < qShuffled.length && !qData; i += 6) {
+      qData = await firstUsable(qShuffled.slice(i, i + 6), jlptOnly);
+    }
+    if (!qData) throw new Error('Could not find a usable kanji. Try selecting more JLPT levels.');
+
+    const correctMeaning = qData.meanings[0];
+    const usedMeanings   = new Set([correctMeaning.toLowerCase()]);
+    const usedChars      = new Set([qData.kanji]);
+    const distractors    = [];
+
+    const dShuffled = shuffle(distractorPool.filter(c => !usedChars.has(c)));
+
+    for (var j = 0; j < dShuffled.length && distractors.length < 3; j += 8) {
+      const results = await Promise.all(
+        dShuffled.slice(j, j + 8).map(c => fetchKanji(c).catch(() => null))
+      );
+      for (const d of results) {
+        if (distractors.length >= 3) break;
+        if (!d || !isUsable(d, jlptOnly) || usedChars.has(d.kanji)) continue;
+        const m = d.meanings[0];
+        if (!m || usedMeanings.has(m.toLowerCase())) continue;
+        usedMeanings.add(m.toLowerCase());
+        usedChars.add(d.kanji);
+        distractors.push(m);
+      }
+    }
+
+    if (distractors.length < 3 && !isVocab) {
+      const fallback = shuffle(getTopicPool(topicChars).filter(c => !usedChars.has(c)));
+      for (var k = 0; k < fallback.length && distractors.length < 3; k += 8) {
+        const results = await Promise.all(
+          fallback.slice(k, k + 8).map(c => fetchKanji(c).catch(() => null))
+        );
+        for (const d of results) {
+          if (distractors.length >= 3) break;
+          if (!d || !isUsable(d, false) || usedChars.has(d.kanji)) continue;
+          const m = d.meanings[0];
+          if (!m || usedMeanings.has(m.toLowerCase())) continue;
+          usedMeanings.add(m.toLowerCase());
+          usedChars.add(d.kanji);
+          distractors.push(m);
+        }
+      }
+    }
+
+    if (distractors.length < 3) {
+      throw new Error('Not enough distinct meanings found. Try selecting more JLPT levels.');
+    }
+
+    return {
+      word:         qData.kanji,
+      kun_readings: qData.kun_readings || [],
+      on_readings:  qData.on_readings  || [],
+      jlpt:         qData.jlpt,
+      stroke_count: qData.stroke_count,
+      correct:      correctMeaning,
+      options:      shuffle([correctMeaning, ...distractors])
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  FETCH + RENDER
+  // ══════════════════════════════════════════════════════════════
+  async function fetchQuestion(mode) {
+    const s    = state[mode];
+    s.answered = false;
+    quizData[mode] = null;
+
+    // Bug #7: token-based cancellation for rapid re-fetches
+    const myToken = (fetchTokens[mode] || 0) + 1;
+    fetchTokens[mode] = myToken;
+
+    const area = document.getElementById(mode + '-quiz-area');
+    area.innerHTML =
+      '<div class="loading-state"><div class="spinner"></div><span>Fetching kanji\u2026</span></div>';
+
+    try {
+      const data = await buildQuestion(mode);
+      // If a newer fetch started while we were waiting, discard this result
+      if (fetchTokens[mode] !== myToken) return;
+      quizData[mode] = data;
+      renderQuiz(mode, data);
+    } catch (err) {
+      if (fetchTokens[mode] !== myToken) return;
+      area.innerHTML =
+        '<div class="error-msg"><strong>Couldn\u2019t load a question.</strong><br>' + esc(err.message) + '</div>' +
+        '<div class="action-row"><button class="next-btn" onclick="fetchQuestion(\'' + mode + '\')">&#x21BA; Retry</button></div>';
+    }
+  }
+
+  // ── Reading formatter ─────────────────────────────────────────
+  function formatReadings(kunReadings, onReadings) {
+    var parts = [];
+    kunReadings.slice(0, 3).forEach(function(r) {
+      // Bug #1 & #5: replace ALL dots, not just the first
+      var dotIdx = r.indexOf('.');
+      if (dotIdx === -1) {
+        parts.push('<span class="reading-chip">' + esc(r) + '</span>');
+      } else {
+        var stem = r.slice(0, dotIdx);
+        var oku  = r.slice(dotIdx + 1).replace(/\./g, '');
+        parts.push('<span class="reading-chip">' + esc(stem) + '<span class="okurigana">' + esc(oku) + '</span></span>');
+      }
+    });
+    onReadings.slice(0, 2).forEach(function(r) {
+      parts.push('<span class="reading-chip on-yomi">' + esc(r) + '</span>');
+    });
+    if (!parts.length) return '';
+    return '<div class="reading-display">' + parts.join('<span class="reading-sep">｜</span>') + '</div>';
+  }
+
+  function renderQuiz(mode, data) {
+    const s    = state[mode];
+    const area = document.getElementById(mode + '-quiz-area');
+
+    const streakHtml = (function() {
+      var n    = s.streak;
+      var hot  = n >= 3 ? ' hot' : '';
+      var icon = n >= 3 ? '\uD83D\uDD25' : '\u26A1';
+      return '<div class="streak-badge' + hot + '"><span class="streak-num">' + n + '</span> ' + icon + ' streak</div>';
+    })();
+
+    const jlptHtml   = data.jlpt        ? '<span class="jlpt-pill" data-level="' + data.jlpt + '">JLPT N' + data.jlpt + '</span>' : '';
+    const strokeHtml = data.stroke_count ? '<span class="stroke-info">' + data.stroke_count + ' strokes</span>' : '';
+
+    const optionsHtml = data.options.map(function(opt, i) {
+      return '<button class="option-btn" id="opt-' + mode + '-' + i + '" onclick="selectOption(\'' + mode + '\',' + i + ')">' + esc(opt) + '</button>';
+    }).join('');
+
+    const consec = s.mastered[data.word] || 0;
+    const masteryTicker =
+      '<div class="mastery-ticker" title="' + consec + '/3 correct in a row">' +
+        [0,1,2].map(i => '<span class="mastery-ticker-dot' + (i < consec ? ' filled' : '') + '"></span>').join('') +
+      '</div>';
+
+    const isPinned = !!s.pinned[data.word];
+    const pinToggle =
+      '<button class="pin-toggle' + (isPinned ? ' pinned' : '') + '" id="pin-toggle-' + mode + '" ' +
+        'title="' + (isPinned ? 'Unpin this kanji' : 'Pin this kanji') + '" ' +
+        'onclick="togglePinCurrent(\'' + mode + '\')">' +
+        (isPinned ? '\u2605' : '\u2606') +
+      '</button>';
+
+    // Audio playback: speaks the kanji's best available reading via the
+    // browser's built-in speechSynthesis (no API key, no external service).
+    const speakerBtn = speechSynthesisSupported
+      ? '<button class="speaker-btn" id="speaker-btn-' + mode + '" onclick="playReading(\'' + mode + '\')" title="Play reading">\uD83D\uDD0A</button>'
+      : '';
+
+    area.innerHTML =
+      streakHtml +
+      '<div class="word-card">' +
+        pinToggle +
+        masteryTicker +
+        '<div class="kanji-row">' +
+          '<div class="kanji-display">' + esc(data.word) + '</div>' +
+          speakerBtn +
+        '</div>' +
+        formatReadings(data.kun_readings || [], data.on_readings || []) +
+        '<div class="meta-row">' +
+          '<span class="word-type-badge">kanji</span>' +
+          jlptHtml + strokeHtml +
+        '</div>' +
+      '</div>' +
+      '<div class="options-grid">' + optionsHtml + '</div>' +
+      '<div class="action-row">' +
+        '<div class="score-display" id="score-' + mode + '">' + scoreText(s) + '</div>' +
+        '<button class="next-btn" id="next-' + mode + '" onclick="fetchQuestion(\'' + mode + '\')" disabled style="visibility:hidden">Next \u2192</button>' +
+      '</div>' +
+      '<div class="bottom-bar" id="bottom-bar-' + mode + '"></div>';
+
+    updateBottomBar(mode);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  ANSWER SELECTION
+  // ══════════════════════════════════════════════════════════════
+  function selectOption(mode, idx) {
+    const s    = state[mode];
+    const data = quizData[mode];
+    if (s.answered || !data) return;
+
+    s.answered = true;
+    s.total++;
+    s.lifetimeTotal++;
+
+    const selected  = data.options[idx];
+    const correct   = data.correct;
+    const isCorrect = selected === correct;
+
+    if (isCorrect) {
+      s.score++;
+      s.streak++;
+      s.lifetimeCorrect++;
+      // Bug #3 fix: mastered is per-mode, stored separately per mode in localStorage
+      s.mastered[data.word] = (s.mastered[data.word] || 0) + 1;
+      saveMastered(mode, s.mastered);
+
+      // Capture readings/meaning the moment this kanji becomes mastered,
+      // so the Mastered tab can display full detail like Mistakes/Pinned.
+      // `justMastered` also doubles as the "first time crossing 3" flag —
+      // used below to fix the toast re-firing on every correct answer for
+      // pinned kanji that stay in rotation past mastery (their counter
+      // keeps climbing past 3 instead of stopping there).
+      var justMastered = false;
+      if (s.mastered[data.word] >= 3 && !s.masteredDetails[data.word]) {
+        const allReadings = (data.kun_readings || []).map(r => r.replace(/\./g, ''))
+          .concat(data.on_readings || []);
+        s.masteredDetails[data.word] = { word: data.word, readings: allReadings, meaning: data.correct || '' };
+        saveMasteredDetails(mode, s.masteredDetails);
+        justMastered = true;
+
+        // Once a kanji is mastered, drop it from Mistakes. Intentional:
+        // Mistakes is meant to stay a manual hand-typed Anki challenge —
+        // unlike Pinned (which has a one-click CSV export), Mistakes has
+        // no export path on purpose, so a word only needs to live there
+        // until it's actually learned, not forever as a historical log.
+        const beforeLen = s.wrongWords.length;
+        s.wrongWords = s.wrongWords.filter(w => w.word !== data.word);
+        if (s.wrongWords.length !== beforeLen) saveWrongWords(mode, s.wrongWords);
+      }
+    } else {
+      s.streak = 0;
+      s.mastered[data.word] = 0;
+      saveMastered(mode, s.mastered);
+    }
+    saveSessionStats(mode);
+
+    data.options.forEach(function(opt, i) {
+      var btn = document.getElementById('opt-' + mode + '-' + i);
+      if (!btn) return;
+      btn.disabled = true;
+      if (opt === correct)  btn.classList.add('correct');
+      else if (i === idx)   btn.classList.add('wrong');
+    });
+
+    var scoreEl = document.getElementById('score-' + mode);
+    if (scoreEl) scoreEl.innerHTML = scoreText(s);
+
+    var streakBadge = document.querySelector('#page-' + mode + ' .streak-badge');
+    if (streakBadge) {
+      var n    = s.streak;
+      var hot  = n >= 3 ? ' hot' : '';
+      var icon = n >= 3 ? '\uD83D\uDD25' : '\u26A1';
+      streakBadge.className = 'streak-badge' + hot;
+      streakBadge.innerHTML = '<span class="streak-num">' + n + '</span> ' + icon + ' streak';
+    }
+
+    if (isCorrect) {
+      if (justMastered) {
+        // Feature #10: mastered flash — fires exactly once, the moment
+        // this kanji first crosses the 3-in-a-row threshold. Previously
+        // this checked `consecNow >= 3`, which re-triggered on every
+        // correct answer for pinned kanji (their counter keeps climbing
+        // past 3 since pinning keeps them in rotation after mastery).
+        showMasteredToast(mode, data.word);
+        setTimeout(function() {
+          updateBottomBar(mode);
+          updateWrongPanel(mode);
+          fetchQuestion(mode);
+        }, 1200);
+      } else {
+        setTimeout(function() { fetchQuestion(mode); }, 700);
+      }
+    } else {
+      var alreadyLogged = s.wrongWords.some(function(w) { return w.word === data.word; });
+      if (!alreadyLogged) {
+        // Store ALL kun + on readings (not just the first) so the review
+        // panel reflects every reading the kanji actually has.
+        var allReadings = (data.kun_readings || []).map(r => r.replace(/\./g, ''))
+          .concat(data.on_readings || []);
+        s.wrongWords.push({
+          word:     data.word,
+          readings: allReadings,
+          correct:  correct,
+          guessed:  selected
+        });
+        saveWrongWords(mode, s.wrongWords);
+      }
+      updateWrongPanel(mode);
+      updateBottomBar(mode);
+      var nextBtn = document.getElementById('next-' + mode);
+      if (nextBtn) { nextBtn.style.visibility = 'visible'; nextBtn.disabled = false; }
+    }
+  }
+
+  // Feature #10: mastered toast overlay
+  function showMasteredToast(mode, kanji) {
+    const area = document.getElementById(mode + '-quiz-area');
+    const toast = document.createElement('div');
+    toast.className = 'mastered-toast';
+    toast.innerHTML = '<span class="mastered-toast-kanji">' + esc(kanji) + '</span><span class="mastered-toast-label">Mastered! 🎉</span>';
+    area.style.position = 'relative';
+    area.appendChild(toast);
+    setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 1100);
+  }
+
+  // ── Utilities ─────────────────────────────────────────────────
+  function scoreText(s) {
+    var pct = s.total > 0 ? Math.round((s.score / s.total) * 100) + '%' : '—';
+    return 'Score: <strong>' + s.score + '/' + s.total + '</strong> (' + pct + ')';
+  }
+
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function esc(str) {
+    var d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+  }
+
+  // ── Audio playback of readings (browser speechSynthesis, no API) ──
+  const speechSynthesisSupported = typeof window.speechSynthesis !== 'undefined';
+
+  function playReading(mode) {
+    if (!speechSynthesisSupported) return;
+    const data = quizData[mode];
+    if (!data) return;
+
+    // Speak the kanji itself — Japanese TTS engines resolve the correct
+    // reading from context far better than guessing which of several
+    // possible kun/on readings to read aloud in isolation.
+    window.speechSynthesis.cancel(); // stop any reading already in progress
+    const utterance = new SpeechSynthesisUtterance(data.word);
+    utterance.lang = 'ja-JP';
+    utterance.rate = 0.85; // slightly slower for clarity while learning
+
+    const btn = document.getElementById('speaker-btn-' + mode);
+    if (btn) btn.classList.add('speaking');
+    utterance.onend = utterance.onerror = function() {
+      if (btn) btn.classList.remove('speaking');
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  // ── Export pinned kanji as a CSV (Anki-importable) ─────────────
+  // Anki's "Import File" accepts comma-separated values directly —
+  // Field 1 = Front (kanji), Field 2 = Back (readings + meaning).
+  // Deliberately scoped to PINNED kanji only, not mistakes or mastered:
+  // pinning is the moment a learner decides "I want to study this one,"
+  // so exporting that curated list preserves the manual-recall step
+  // that makes flashcard creation valuable in the first place — this
+  // just saves the data-entry, not the studying.
+  function exportPinnedCsv(mode) {
+    const pinnedList = Object.values(state[mode].pinned);
+    if (!pinnedList.length) return;
+
+    const csvRows = pinnedList.map(p => {
+      const front = p.word;
+      const back  = (p.readings || []).join('\u3001') + (p.meaning ? ' \u2014 ' + p.meaning : '');
+      // Quote both fields, escape internal quotes per CSV spec
+      const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+      return q(front) + ',' + q(back);
+    });
+
+    const csv = csvRows.join('\n');
+    // Prepend UTF-8 BOM so kanji render correctly if the file is opened
+    // in Excel/Sheets to sanity-check before importing into Anki.
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'bunrui-kanji-pinned-' + mode + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  </script>
+
+
+</body>
+</html>
