@@ -18,7 +18,7 @@ A free, single-file kanji quiz app for learning Japanese. No backend, no API key
 
 ## Running it
 
-No install needed. Just open `nihongo-quiz.html` directly in a browser, or serve the folder with any static file server:
+No install needed. Just click here!
 
 ## Tech
 
