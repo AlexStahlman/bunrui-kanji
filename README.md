@@ -4,14 +4,14 @@ A free, single-file kanji quiz app for learning Japanese. No backend, no API key
 
 ## What it does
 
-- Pulls real kanji definitions, readings, and JLPT levels from [kanjiapi.dev](https://kanjiapi.dev)
+- Pulls real kanji definitions, readings, and JLPT levels from [kanjiapi.dev](https://kanjiapi.dev) and [jisho.org](https://jisho.org/)
 - Quiz format: see a kanji, pick the correct meaning from 4 options
 - JLPT level filter (N5–N1) for the general Vocab mode, with multi-select
 - Topic-based decks instead of just raw JLPT lists: Daily Conversation, Sumo, HSR, Overwatch, an Anime dropdown (Shonen / Romance / Seinen / Slice of Life), and a Borderlands dropdown (BL1 / BL2 / Pre-Sequel / BL3 / BL4) with per-character filtering
 - Mastery tracking — get a kanji right 3 times in a row and it's marked mastered and removed from rotation
 - Pin/favorite specific kanji to keep them in your personal study set
-- Mistake tracking with a one-click link out to Jisho.org for deeper lookup
-- Export your pinned kanji as a CSV (Anki-importable format)
+- Mistake tracking with a one-click link out to [Jisho.org](https://jisho.org/) for deeper lookup
+- Export your pinned kanji as a CSV
 - Dark mode by default, with a light mode toggle
 - Audio playback of readings via the browser's built-in speech synthesis
 - All progress (mastery, pins, mistakes, stats) is saved locally in your browser via `localStorage` — nothing is sent to a server
@@ -19,13 +19,6 @@ A free, single-file kanji quiz app for learning Japanese. No backend, no API key
 ## Running it
 
 No install needed. Just open `nihongo-quiz.html` directly in a browser, or serve the folder with any static file server:
-
-```bash
-python3 -m http.server 8000
-# then visit http://localhost:8000/nihongo-quiz.html
-```
-
-Works offline after the first load except for the live kanji lookups, which require an internet connection to reach kanjiapi.dev.
 
 ## Tech
 
@@ -37,8 +30,4 @@ Works offline after the first load except for the live kanji lookups, which requ
 
 The JLPT-based Vocab mode uses kanji classifications that come directly from kanjiapi.dev / Jonathan Waller's JLPT resource list — those are sourced.
 
-The themed topic decks (Sumo, Anime genres, Daily Conversation, and the game-inspired decks like HSR, Overwatch, and Borderlands) are original vocabulary lists I put together myself, grouping kanji around the *concepts* and *themes* of each topic — not pulled from any official in-game text, localization, or copyrighted dialogue. Think of them as "kanji you might want to know before diving into a game/show in that genre," not as verified official terminology.
-
-## License
-
-No license has been chosen yet — add one (MIT is a reasonable default for a project like this) if you plan to share or accept contributions.
+The themed topic decks (Sumo, Anime genres, Daily Conversation, and the game-inspired decks like HSR, Overwatch, and Borderlands) are original vocabulary lists put together by grouping kanji around the *concepts* and *themes* of each topic — not pulled from any official in-game text, localization, or copyrighted dialogue. Think of them as "kanji you might want to know before diving into a game/show in that genre," not as verified official terminology.
