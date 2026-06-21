@@ -18,7 +18,7 @@ A free, single-file kanji quiz app for learning Japanese. No backend, no API key
 
 ## Running it
 
-No install needed. Just click here!
+No install needed. Just click [here](https://alexstahlman.github.io/bunrui-kanji/)!
 
 ## Tech
 
