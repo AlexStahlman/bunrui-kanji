@@ -1,6 +1,6 @@
 # Bunrui Kanji (分類漢字)
 
-A free, single-file kanji quiz app for learning Japanese. No backend, no API key, no build step — open the HTML file and start studying.
+A free, single-file kanji quiz app for learning Japanese.
 
 ## What it does
 
